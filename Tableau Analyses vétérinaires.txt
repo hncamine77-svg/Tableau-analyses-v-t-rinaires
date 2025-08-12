@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Analyse Vétérinaire — Outil</title>
+
+<!-- Styles modernes -->
+<style>
+:root{
+--bg: #f6f8fb;
+--card: #ffffff;
+--accent: #2563eb;
+--accent-2: #60a5fa;
+--muted: #64748b;
+--text: #0f172a;
+--success: #16a34a;
+--danger: #dc2626;
+--glass: rgba(255,255,255,0.7);
+}
+body.dark{
+--bg:#071725;
+--card:#071423;
+--accent:#60a5fa;
+--accent-2:#2563eb;
+--muted:#93c5fd;
+--text:#e6eefb;
+--glass: rgba(255,255,255,0.03);
+}
+*{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;}
+body{margin:0;background:linear-gradient(180deg,var(--bg),#eef3fb);color:var(--text);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1200px;margin:28px auto;padding:20px;}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent-2),var(--accent));display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:20px}
+h1{margin:0;font-size:18px}
+.subtitle{color:var(--muted);font-size:13px}
+.actions{display:flex;gap:8px;align-items:center}
+.btn{padding:8px 12px;border-radius:10px;border:none;background:var(--accent);color:white;cursor:pointer;font-weight:600;box-shadow:0 6px 18px rgba(37,99,235,0.08)}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(37,99,235,0.12);box-shadow:none}
+.btn.warn{background:#f59e0b}
+.btn.danger{background:var(--danger)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.tab{padding:8px 12px;border-radius:10px;background:var(--card);cursor:pointer;border:1px solid rgba(15,23,42,0.03);box-shadow:0 4px 12px rgba(2,6,23,0.04)}
+.tab.active{background:linear-gradient(90deg,#e6f0ff,#ffffff);border-color:var(--accent);color:var(--accent);font-weight:700;box-shadow:0 10px 30px rgba(37,99,235,0.10)}
+.tab.active.dark{background:linear-gradient(90deg,rgba(96,165,250,0.08),rgba(0,0,0,0.12))}
+.layout{display:grid;grid-template-columns:1fr 360px;gap:18px}
+.card{background:var(--card);padding:14px;border-radius:12px;border:1px solid rgba(15,23,42,0.03);box-shadow:0 10px 30px rgba(2,6,23,0.04)}
+.table-wrap{overflow:auto;max-height:560px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:10px;border-bottom:1px solid rgba(15,23,42,0.04);text-align:left}
+th{position:sticky;top:0;background:linear-gradient(180deg,#fbfdff,#f7fbff);z-index:2}
+input[type="number"]{padding:6px;border-radius:8px;border:1px solid rgba(15,23,42,0.06);width:100%;background:transparent;color:var(--text)}
+.small{font-size:12px;color:var(--muted)}
+.status{font-weight:700}
+.status.normal{color:var(--success)}
+.status.abnormal{color:var(--danger)}
+.param-actions{display:flex;gap:6px}
+.sidebar h3{margin-top:0}
+.history-list{max-height:320px;overflow:auto;margin-top:8px}
+.history-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;margin-bottom:8px;background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid #eef6ff}
+.modal{position:fixed;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,0.35);z-index:60}
+.modal-card{width:560px;background:var(--card);padding:18px;border-radius:12px;box-shadow:0 20px 60px rgba(2,6,23,0.25)}
+label{display:block;font-size:13px;color:var(--muted);margin-top:8px}
+input[type="text"], input[type="number"]{padding:8px;border-radius:8px;border:1px solid rgba(15,23,42,0.06);width:100%;background:transparent;color:var(--text)}
+footer{margin-top:12px;color:var(--muted);font-size:13px;text-align:center}
+@media(max-width:980px){ .layout{grid-template-columns:1fr} .sidebar{order:2} .tabs{overflow:auto} }
+</style>
+
+<!-- jsPDF + autotable + SheetJS (CDN) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+<header>
+<div class="brand">
+<div class="logo">V</div>
+<div>
+<h1>Analyse Vétérinaire — Outil</h1>
+<div class="subtitle small">Multi-espèces • saisie, interprétation, export PDF/Excel • historique local</div>
+</div>
+</div>
+
+<div class="actions">
+<button id="btnToggleDark" class="btn ghost">🌓 Mode sombre</button>
+<button id="btnHelp" class="btn ghost">❓ Aide</button>
+</div>
+</header>
+
+<!-- Tabs -->
+<div id="tabs" class="tabs"></div>
+
+<div class="layout">
+<main class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<div>
+<div id="speciesTitle" style="font-weight:700">Chien</div>
+<div id="speciesSubtitle" class="small">Paramètres et valeurs de référence</div>
+</div>
+<div style="display:flex;gap:8px">
+<button id="btnAddParam" class="btn">➕ Ajouter paramètre</button>
+<button id="btnSaveSnapshot" class="btn ghost">💾 Sauvegarder analyse</button>
+<button id="btnExportPDF" class="btn">📄 Exporter PDF</button>
+<button id="btnExportExcelSpecies" class="btn warn">📥 Exporter Excel (espèce)</button>
+</div>
+</div>
+
+<div class="table-wrap">
+<table id="paramsTable">
+<thead>
+<tr>
+<th>Paramètre</th>
+<th style="width:140px">Valeur mesurée</th>
+<th style="width:180px">Normes</th>
+<th style="width:100px">Unité</th>
+<th style="width:120px;text-align:center">Statut</th>
+<th style="width:100px">Actions</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+<div style="display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap">
+<button id="btnExportExcelAll" class="btn success">📥 Exporter historique (toutes espèces)</button>
+<button id="btnResetAll" class="btn ghost">🔁 Réinitialiser (par défaut)</button>
+<div style="flex:1"></div>
+<div class="small">Plages indicatives — à ajuster selon labo/méthode.</div>
+</div>
+</main>
+
+<aside class="card sidebar">
+<h3>Historique (espèce)</h3>
+<div id="historyList" class="history-list"></div>
+
+<hr style="margin:12px 0">
+
+<h3>Gérer paramètres</h3>
+<div class="small muted">Ajouter / modifier / supprimer paramètres pour l'espèce courante. Configuration persistée localement.</div>
+<div style="margin-top:8px">
+<button id="btnShowEdit" class="btn ghost">✏️ Gérer paramètres</button>
+</div>
+
+<hr style="margin:12px 0">
+
+<h3>Import / Export config</h3>
+<div class="small muted">Exporter ou importer la configuration (JSON) des paramètres.</div>
+<div style="margin-top:8px;display:flex;gap:8px">
+<button id="btnExportConfig" class="btn ghost">⬇ Export config</button>
+<button id="btnImportConfig" class="btn">⬆ Import config</button>
+<input type="file" id="fileImport" accept=".json" style="display:none" />
+</div>
+</aside>
+</div>
+
+<footer class="small" style="margin-top:16px">Prototype — Données indicatives • Sauvegarde locale (localStorage)</footer>
+</div>
+
+<!-- Modal add/edit parameter -->
+<div id="modal" style="display:none" class="modal">
+<div class="modal-card">
+<h3 id="modalTitle">Ajouter / Modifier paramètre</h3>
+<label>Nom du paramètre</label>
+<input type="text" id="paramName" />
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div>
+<label>Valeur min</label>
+<input type="number" id="paramMin" />
+</div>
+<div>
+<label>Valeur max</label>
+<input type="number" id="paramMax" />
+</div>
+</div>
+<label>Unité</label>
+<input type="text" id="paramUnit" />
+<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+<button id="modalCancel" class="btn ghost">Annuler</button>
+<button id="modalSave" class="btn">Sauvegarder</button>
+</div>
+</div>
+</div>
+
+<!-- Help modal -->
+<div id="helpModal" style="display:none" class="modal">
+<div class="modal-card">
+<h3>Aide rapide</h3>
+<p class="small muted">Utilisation</p>
+<ul>
+<li>Choisis l'espèce avec les onglets en haut.</li>
+<li>Saisis les valeurs mesurées → le statut se met à jour automatiquement.</li>
+<li>Sauvegarde pour enregistrer dans l'historique local.</li>
+<li>Export PDF/Excel depuis les boutons.</li>
+<li>Gère les paramètres (ajout/modif/suppression) via le bouton "Gérer paramètres".</li>
+</ul>
+<div style="display:flex;justify-content:flex-end;margin-top:12px">
+<button id="helpClose" class="btn">Fermer</button>
+</div>
+</div>
+</div>
+
+<!-- Scripts -->
+<script>
+(function(){
+// ---------- Données initiales (valeurs indicatives) ----------
+const DEFAULT_DATA = {
+"Chien": {
+"Hématocrite": {min:37,max:55,unit:"%"},
+"Hémoglobine": {min:12,max:18,unit:"g/dL"},
+"Globules rouges": {min:5.5,max:8.5,unit:"M/µL"},
+"Globules blancs": {min:6,max:17,unit:"k/µL"},
+"Urée": {min:2.5,max:7.5,unit:"mmol/L"},
+"Créatinine": {min:44,max:133,unit:"µmol/L"},
+"ALT (ALAT)": {min:10,max:125,unit:"U/L"},
+"AST (ASAT)": {min:15,max:66,unit:"U/L"},
+"Phosphatase alcaline": {min:20,max:150,unit:"U/L"},
+"Glucose": {min:3.3,max:6.1,unit:"mmol/L"},
+"Calcium": {min:2.2,max:3.0,unit:"mmol/L"},
+"Phosphore": {min:0.8,max:1.6,unit:"mmol/L"},
+"Potassium": {min:3.9,max:5.8,unit:"mmol/L"},
+"Sodium": {min:140,max:155,unit:"mmol/L"},
+"Chlorure": {min:105,max:115,unit:"mmol/L"},
+"Protéines totales": {min:54,max:75,unit:"g/L"},
+"Albumine": {min:27,max:39,unit:"g/L"}
+},
+"Chat": {
+"Hématocrite": {min:30,max:45,unit:"%"},
+"Hémoglobine": {min:8,max:15,unit:"g/dL"},
+"Globules rouges": {min:5,max:10,unit:"M/µL"},
+"Globules blancs": {min:5.5,max:19.5,unit:"k/µL"},
+"Urée": {min:5.4,max:12.1,unit:"mmol/L"},
+"Créatinine": {min:71,max:212,unit:"µmol/L"},
+"ALT (ALAT)": {min:20,max:100,unit:"U/L"},
+"AST (ASAT)": {min:15,max:60,unit:"U/L"},
+"Phosphatase alcaline": {min:25,max:93,unit:"U/L"},
+"Glucose": {min:3.9,max:8.3,unit:"mmol/L"},
+"Calcium": {min:2.0,max:2.8,unit:"mmol/L"},
+"Phosphore": {min:1.0,max:2.4,unit:"mmol/L"},
+"Potassium": {min:3.5,max:5.5,unit:"mmol/L"},
+"Sodium": {min:145,max:158,unit:"mmol/L"},
+"Chlorure": {min:112,max:129,unit:"mmol/L"},
+"Protéines totales": {min:54,max:78,unit:"g/L"},
+"Albumine": {min:24,max:40,unit:"g/L"}
+},
+"Lapin": {
+"Hématocrite": {min:33,max:50,unit:"%"},
+"Hémoglobine": {min:10,max:17,unit:"g/dL"},
+"Globules rouges": {min:5,max:7,unit:"M/µL"},
+"Globules blancs": {min:5,max:12,unit:"k/µL"},
+"Urée": {min:2,max:8,unit:"mmol/L"},
+"Créatinine": {min:44,max:133,unit:"µmol/L"},
+"ALT": {min:20,max:80,unit:"U/L"},
+"AST": {min:10,max:60,unit:"U/L"},
+"Phosphatase alcaline": {min:20,max:120,unit:"U/L"},
+"Glucose": {min:4.2,max:8.9,unit:"mmol/L"},
+"Calcium": {min:3.0,max:4.3,unit:"mmol/L"},
+"Phosphore": {min:1.5,max:2.5,unit:"mmol/L"},
+"Potassium": {min:3.8,max:5.8,unit:"mmol/L"},
+"Sodium": {min:130,max:156,unit:"mmol/L"}
+},
+"Bovin": {
+"Hématocrite": {min:24,max:46,unit:"%"},
+"Hémoglobine": {min:8,max:15,unit:"g/dL"},
+"Globules rouges": {min:5,max:10,unit:"M/µL"},
+"Globules blancs": {min:4,max:12,unit:"k/µL"},
+"Urée": {min:1.7,max:6.7,unit:"mmol/L"},
+"Créatinine": {min:88,max:159,unit:"µmol/L"},
+"ALT": {min:15,max:40,unit:"U/L"},
+"AST": {min:60,max:125,unit:"U/L"},
+"Phosphatase alcaline": {min:40,max:150,unit:"U/L"},
+"Glucose": {min:2.2,max:4.4,unit:"mmol/L"},
+"Calcium": {min:2.1,max:2.8,unit:"mmol/L"},
+"Phosphore": {min:1.4,max:2.3,unit:"mmol/L"}
+},
+"Ovin": {
+"Hématocrite": {min:27,max:45,unit:"%"},
+"Hémoglobine": {min:9,max:15,unit:"g/dL"},
+"Globules rouges": {min:9,max:15,unit:"M/µL"},
+"Globules blancs": {min:4,max:12,unit:"k/µL"},
+"Urée": {min:2.5,max:7.5,unit:"mmol/L"},
+"Créatinine": {min:88,max:133,unit:"µmol/L"},
+"ALT": {min:10,max:35,unit:"U/L"},
+"AST": {min:60,max:280,unit:"U/L"},
+"Phosphatase alcaline": {min:68,max:387,unit:"U/L"},
+"Glucose": {min:2.8,max:4.4,unit:"mmol/L"}
+},
+"Caprin": {
+"Hématocrite": {min:22,max:38,unit:"%"},
+"Hémoglobine": {min:8,max:12,unit:"g/dL"},
+"Globules rouges": {min:8,max:13,unit:"M/µL"},
+"Globules blancs": {min:4,max:13,unit:"k/µL"},
+"Urée": {min:2.5,max:7.5,unit:"mmol/L"},
+"Créatinine": {min:88,max:133,unit:"µmol/L"},
+"ALT": {min:10,max:35,unit:"U/L"},
+"AST": {min:60,max:280,unit:"U/L"},
+"Phosphatase alcaline": {min:68,max:387,unit:"U/L"},
+"Glucose": {min:2.8,max:4.4,unit:"mmol/L"}
+},
+"Tortue": {
+"Hématocrite": {min:20,max:40,unit:"%"},
+"Hémoglobine": {min:5,max:13,unit:"g/dL"},
+"Globules rouges": {min:0.3,max:0.8,unit:"M/µL"},
+"Globules blancs": {min:4,max:13,unit:"k/µL"},
+"Urée": {min:1,max:8,unit:"mmol/L"},
+"Créatinine": {min:18,max:80,unit:"µmol/L"},
+"ALT": {min:5,max:40,unit:"U/L"},
+"AST": {min:5,max:50,unit:"U/L"},
+"Glucose": {min:3,max:8,unit:"mmol/L"},
+"Calcium": {min:1.8,max:3.5,unit:"mmol/L"}
+},
+"Canari": {
+"Hématocrite": {min:45,max:55,unit:"%"},
+"Hémoglobine": {min:15,max:20,unit:"g/dL"},
+"Globules rouges": {min:3,max:4,unit:"M/µL"},
+"Globules blancs": {min:3,max:12,unit:"k/µL"},
+"Glucose": {min:15,max:30,unit:"mmol/L"},
+"Calcium": {min:1.8,max:2.8,unit:"mmol/L"},
+"ALT": {min:5,max:25,unit:"U/L"},
+"AST": {min:100,max:350,unit:"U/L"}
+}
+};
+
+// ---------- Storage keys ----------
+const STORAGE_KEYS = { CONFIG: 'veto_config_v1', HISTORY: 'veto_history_v1', THEME: 'veto_theme_v1' };
+
+// ---------- Helpers: load/save config & history ----------
+function loadConfig(){
+try{
+const raw = localStorage.getItem(STORAGE_KEYS.CONFIG);
+if(raw){ const parsed = JSON.parse(raw); return mergeDefaultConfig(parsed); }
+} catch(e){ console.warn("config load error", e); }
+return JSON.parse(JSON.stringify(DEFAULT_DATA));
+}
+function saveConfig(cfg){ try{ localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(cfg)); } catch(e){ console.warn("config save error", e); } }
+function loadHistory(){ try{ const raw = localStorage.getItem(STORAGE_KEYS.HISTORY); if(raw) return JSON.parse(raw); } catch(e){ console.warn("history load error", e); } return []; }
+function saveHistory(history){ try{ localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history)); } catch(e){ console.warn("history save error", e); } }
+
+function mergeDefaultConfig(saved){
+const merged = JSON.parse(JSON.stringify(saved));
+for(const sp of Object.keys(DEFAULT_DATA)){
+if(!merged[sp]) merged[sp] = JSON.parse(JSON.stringify(DEFAULT_DATA[sp]));
+else {
+for(const p of Object.keys(DEFAULT_DATA[sp])){
+if(!merged[sp][p]) merged[sp][p] = JSON.parse(JSON.stringify(DEFAULT_DATA[sp][p]));
+}
+}
+}
+return merged;
+}
+
+// ---------- App state ----------
+let CONFIG = loadConfig();
+let HISTORY = loadHistory();
+let SELECTED_SPECIES = Object.keys(CONFIG)[0];
+let CURRENT_VALUES = {};
+
+// ---------- DOM refs ----------
+const tabsEl = document.getElementById('tabs');
+const speciesTitle = document.getElementById('speciesTitle');
+const paramsTableBody = document.querySelector('#paramsTable tbody');
+const historyListEl = document.getElementById('historyList');
+const fileImport = document.getElementById('fileImport');
+
+const btnAddParam = document.getElementById('btnAddParam');
+const btnShowEdit = document.getElementById('btnShowEdit');
+const btnSaveSnapshot = document.getElementById('btnSaveSnapshot');
+const btnExportPDF = document.getElementById('btnExportPDF');
+const btnExportExcelSpecies = document.getElementById('btnExportExcelSpecies');
+const btnExportExcelAll = document.getElementById('btnExportExcelAll');
+const btnResetAll = document.getElementById('btnResetAll');
+const btnExportConfig = document.getElementById('btnExportConfig');
+const btnImportConfig = document.getElementById('btnImportConfig');
+
+const modal = document.getElementById('modal');
+const modalTitle = document.getElementById('modalTitle');
+const paramName = document.getElementById('paramName');
+const paramMin = document.getElementById('paramMin');
+const paramMax = document.getElementById('paramMax');
+const paramUnit = document.getElementById('paramUnit');
+const modalCancel = document.getElementById('modalCancel');
+const modalSave = document.getElementById('modalSave');
+
+const helpModal = document.getElementById('helpModal');
+const helpClose = document.getElementById('helpClose');
+const btnHelp = document.getElementById('btnHelp');
+const btnToggleDark = document.getElementById('btnToggleDark');
+
+// ---------- Render tabs ----------
+function renderTabs(){
+tabsEl.innerHTML = '';
+Object.keys(CONFIG).forEach(sp => {
+const t = document.createElement('div');
+t.className = 'tab' + (sp === SELECTED_SPECIES ? ' active' : '');
+if(document.body.classList.contains('dark')) t.className += ' dark';
+t.textContent = sp;
+t.onclick = ()=> { SELECTED_SPECIES = sp; CURRENT_VALUES = {}; renderAll(); };
+tabsEl.appendChild(t);
+});
+}
+
+// ---------- Render parameters table ----------
+function renderParams(){
+paramsTableBody.innerHTML = '';
+speciesTitle.textContent = SELECTED_SPECIES;
+const params = CONFIG[SELECTED_SPECIES];
+for(const [param, ref] of Object.entries(params)){
+const tr = document.createElement('tr');
+
+const tdName = document.createElement('td'); tdName.textContent = param; tr.appendChild(tdName);
+
+const tdVal = document.createElement('td');
+const input = document.createElement('input'); input.type='number'; input.step='any'; input.className=''; input.value = CURRENT_VALUES[param] !== undefined ? CURRENT_VALUES[param] : '';
+input.oninput = (e)=> { const v = e.target.value; CURRENT_VALUES[param] = v === '' ? undefined : parseFloat(v); updateRowStatus(tr, param, CURRENT_VALUES[param], ref); };
+tdVal.appendChild(input); tr.appendChild(tdVal);
+
+const tdNorm = document.createElement('td'); tdNorm.textContent = (ref.min === "ND" ? "ND" : ref.min + " - " + ref.max); tr.appendChild(tdNorm);
+
+const tdUnit = document.createElement('td'); tdUnit.textContent = ref.unit || ''; tr.appendChild(tdUnit);
+
+const tdStatus = document.createElement('td'); tdStatus.style.textAlign='center'; tdStatus.className='status-cell'; updateRowStatus(tr, param, CURRENT_VALUES[param], ref); tr.appendChild(tdStatus);
+
+const tdAct = document.createElement('td'); tdAct.style.textAlign='right';
+const editBtn = document.createElement('button'); editBtn.className='btn ghost'; editBtn.style.padding='6px'; editBtn.textContent='✏️'; editBtn.title='Modifier'; editBtn.onclick = ()=> openEditModal(param, ref);
+const delBtn = document.createElement('button'); delBtn.className='btn danger'; delBtn.style.padding='6px'; delBtn.textContent='🗑'; delBtn.title='Supprimer'; delBtn.onclick = ()=> { if(confirm(`Supprimer "${param}" ?`)){ delete CONFIG[SELECTED_SPECIES][param]; saveConfig(CONFIG); renderAll(); } };
+tdAct.appendChild(editBtn); tdAct.appendChild(delBtn); tr.appendChild(tdAct);
+
+paramsTableBody.appendChild(tr);
+}
+}
+
+function updateRowStatus(tr, param, value, ref){
+const statusCell = tr.querySelector('.status-cell') || tr.children[4];
+if(value === undefined || value === '' || value === null || isNaN(value)){ statusCell.innerHTML = '<span class="small muted">—</span>'; return; }
+if(ref.min === "ND" || ref.max === "ND"){ statusCell.innerHTML = '<span class="small muted">ND</span>'; return; }
+const num = parseFloat(value);
+if(num >= ref.min && num <= ref.max){ statusCell.innerHTML = `<span class="status normal">Normal</span>`; }
+else { statusCell.innerHTML = `<span class="status abnormal">Hors norme</span>`; }
+}
+
+// ---------- Modal add/edit ----------
+let editingParam = null;
+function openAddModal(){ editingParam = null; modalTitle.textContent = `Ajouter un paramètre (${SELECTED_SPECIES})`; paramName.value=''; paramMin.value=''; paramMax.value=''; paramUnit.value=''; modal.style.display='flex'; }
+function openEditModal(param, ref){ editingParam = param; modalTitle.textContent = `Modifier "${param}" (${SELECTED_SPECIES})`; paramName.value = param; paramMin.value = (ref.min==="ND"?'':ref.min); paramMax.value = (ref.max==="ND"?'':ref.max); paramUnit.value = ref.unit || ''; modal.style.display='flex'; }
+modalCancel.onclick = ()=> { modal.style.display='none'; editingParam = null; };
+modalSave.onclick = ()=>{
+const name = paramName.value.trim(); if(!name){ alert('Nom requis'); return; }
+const minRaw = paramMin.value, maxRaw = paramMax.value, unit = paramUnit.value.trim();
+const min = minRaw === '' ? "ND" : parseFloat(minRaw); const max = maxRaw === '' ? "ND" : parseFloat(maxRaw);
+if(min !== "ND" && max !== "ND" && min > max){ alert('Min doit être ≤ Max'); return; }
+CONFIG[SELECTED_SPECIES] = CONFIG[SELECTED_SPECIES] || {};
+if(editingParam && editingParam !== name) delete CONFIG[SELECTED_SPECIES][editingParam];
+CONFIG[SELECTED_SPECIES][name] = { min:min, max:max, unit:unit };
+saveConfig(CONFIG); modal.style.display='none'; editingParam=null; renderAll();
+};
+
+// ---------- History ----------
+function renderHistory(){
+historyListEl.innerHTML=''; const filtered = HISTORY.filter(h=>h.species===SELECTED_SPECIES).reverse();
+if(!filtered.length){ historyListEl.innerHTML = '<div class="small muted">Aucun enregistrement.</div>'; return; }
+filtered.forEach(entry=>{
+const div = document.createElement('div'); div.className='history-item';
+const left = document.createElement('div'); left.innerHTML = `<div style="font-weight:700">${entry.date}</div><div class="small muted">${entry.species}</div>`;
+const right = document.createElement('div');
+const loadBtn = document.createElement('button'); loadBtn.className='btn ghost'; loadBtn.textContent='Charger'; loadBtn.onclick = ()=> { SELECTED_SPECIES = entry.species; CURRENT_VALUES = entry.values || {}; renderAll(); };
+const delBtn = document.createElement('button'); delBtn.className='btn danger'; delBtn.textContent='Suppr'; delBtn.onclick = ()=> { if(confirm('Supprimer cet enregistrement ?')){ const idx = HISTORY.findIndex(h=>h.date===entry.date && h.species===entry.species); if(idx>-1){ HISTORY.splice(idx,1); saveHistory(HISTORY); renderHistory(); } } };
+right.appendChild(loadBtn); right.appendChild(delBtn);
+div.appendChild(left); div.appendChild(right); historyListEl.appendChild(div);
+});
+}
+
+function saveSnapshot(){
+const now = new Date(); const entry = { species: SELECTED_SPECIES, date: now.toLocaleString(), values: JSON.parse(JSON.stringify(CURRENT_VALUES)) };
+HISTORY.push(entry); saveHistory(HISTORY); alert('Sauvegardé dans l\'historique.'); renderHistory();
+}
+
+// ---------- Export PDF ----------
+async function exportPDF(){
+const { jsPDF } = window.jspdf;
+const doc = new jsPDF({ unit:'pt', format:'a4' });
+doc.setFontSize(14); doc.text(`Rapport d'analyse — ${SELECTED_SPECIES}`, 40, 50); doc.setFontSize(10); doc.text(`Généré : ${new Date().toLocaleString()}`, 40, 66);
+const params = CONFIG[SELECTED_SPECIES]; const body = [];
+for(const [param, ref] of Object.entries(params)){
+const val = (CURRENT_VALUES[param] !== undefined ? CURRENT_VALUES[param] : '');
+const norm = (ref.min === "ND" ? "ND" : ref.min + " - " + ref.max);
+const unit = ref.unit || '';
+const status = (val === '' || val === undefined) ? '' : ((ref.min==="ND"||ref.max==="ND")? 'ND' : (val >= ref.min && val <= ref.max ? 'Normal' : 'Hors norme'));
+body.push([param, String(val), norm, unit, status]);
+}
+doc.autoTable({ head:[['Paramètre','Valeur mesurée','Normes','Unité','Statut']], body: body, startY: 90, styles:{fontSize:10}, headStyles:{fillColor:[37,99,235],textColor:255} });
+doc.save(`rapport_${SELECTED_SPECIES}_${Date.now()}.pdf`);
+}
+
+// ---------- Export Excel for species ----------
+function exportExcelSpecies(){
+const wb = XLSX.utils.book_new(); const rows=[];
+for(const [param, ref] of Object.entries(CONFIG[SELECTED_SPECIES])){
+rows.push({ 'Espèce': SELECTED_SPECIES, 'Paramètre': param, 'Valeur mesurée': CURRENT_VALUES[param] !== undefined ? CURRENT_VALUES[param] : '', 'Norme': (ref.min==="ND"? 'ND' : `${ref.min} - ${ref.max}`), 'Unité': ref.unit || '', 'Statut': (CURRENT_VALUES[param]===undefined||CURRENT_VALUES[param]==='')? '' : ((ref.min==="ND"||ref.max==="ND")? 'ND' : (CURRENT_VALUES[param]>=ref.min && CURRENT_VALUES[param]<=ref.max ? 'Normal' : 'Hors norme')) });
+}
+const ws = XLSX.utils.json_to_sheet(rows); XLSX.utils.book_append_sheet(wb, ws, SELECTED_SPECIES); XLSX.writeFile(wb, `resultats_${SELECTED_SPECIES}_${Date.now()}.xlsx`);
+}
+
+// ---------- Export Excel All history ----------
+function exportExcelAll(){
+const rows = [];
+HISTORY.forEach(entry=>{
+const params = CONFIG[entry.species] || {};
+for(const [param, ref] of Object.entries(params)){
+rows.push({ 'Date': entry.date, 'Espèce': entry.species, 'Paramètre': param, 'Valeur mesurée': entry.values[param] !== undefined ? entry.values[param] : '', 'Norme': (ref.min==="ND"? 'ND' : `${ref.min} - ${ref.max}`), 'Unité': ref.unit || '', 'Statut': (entry.values[param]===undefined||entry.values[param]==='')? '' : ((ref.min==="ND"||ref.max==="ND")? 'ND' : (entry.values[param]>=ref.min && entry.values[param]<=ref.max ? 'Normal' : 'Hors norme')) });
+}
+});
+if(rows.length===0){ alert('Aucun enregistrement dans l\'historique.'); return; }
+const wb = XLSX.utils.book_new(); const ws = XLSX.utils.json_to_sheet(rows); XLSX.utils.book_append_sheet(wb, ws, 'Historique'); XLSX.writeFile(wb, `historique_analyses_${Date.now()}.xlsx`);
+}
+
+// ---------- Export / Import config ----------
+function exportConfig(){
+const dataStr = JSON.stringify(CONFIG, null, 2); const blob = new Blob([dataStr], {type:"application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `veto_config_${Date.now()}.json`; a.click(); URL.revokeObjectURL(url);
+}
+document.getElementById('btnExportConfig').onclick = exportConfig;
+document.getElementById('btnImportConfig').onclick = ()=> fileImport.click();
+fileImport.onchange = function(e){ const f = e.target.files[0]; if(!f) return; const reader = new FileReader(); reader.onload = (ev)=>{ try{ const parsed = JSON.parse(ev.target.result); CONFIG = mergeDefaultConfig(parsed); saveConfig(CONFIG); alert('Configuration importée.'); renderAll(); } catch(err){ alert('JSON invalide'); } }; reader.readAsText(f); fileImport.value=''; };
+
+// ---------- Reset ----------
+function resetAll(){ if(!confirm('Réinitialiser aux paramètres par défaut ?')) return; localStorage.removeItem(STORAGE_KEYS.CONFIG); CONFIG = JSON.parse(JSON.stringify(DEFAULT_DATA)); saveConfig(CONFIG); alert('Réinitialisé'); renderAll(); }
+
+// ---------- Theme ----------
+function loadTheme(){ try{ const t = localStorage.getItem(STORAGE_KEYS.THEME) || 'light'; if(t==='dark'){ document.body.classList.add('dark'); btnToggleDark.textContent='☀️ Mode clair'; } else { document.body.classList.remove('dark'); btnToggleDark.textContent='🌓 Mode sombre'; } }catch(e){} }
+function toggleTheme(){ if(document.body.classList.contains('dark')){ document.body.classList.remove('dark'); localStorage.setItem(STORAGE_KEYS.THEME,'light'); btnToggleDark.textContent='🌓 Mode sombre'; } else { document.body.classList.add('dark'); localStorage.setItem(STORAGE_KEYS.THEME,'dark'); btnToggleDark.textContent='☀️ Mode clair'; } renderTabs(); }
+btnToggleDark.onclick = toggleTheme;
+btnHelp.onclick = ()=> { helpModal.style.display='flex'; };
+helpClose.onclick = ()=> { helpModal.style.display='none'; };
+
+// ---------- UI bind ----------
+btnAddParam.onclick = openAddModal;
+btnShowEdit.onclick = ()=> openAddModal();
+btnSaveSnapshot.onclick = saveSnapshot;
+btnExportPDF.onclick = exportPDF;
+btnExportExcelSpecies.onclick = exportExcelSpecies;
+btnExportExcelAll.onclick = exportExcelAll;
+btnResetAll.onclick = resetAll;
+
+document.addEventListener('keydown', (e)=>{ if((e.ctrlKey||e.metaKey) && e.key==='s'){ e.preventDefault(); exportConfig(); } });
+
+// ---------- Initial render ----------
+function renderAll(){ renderTabs(); renderParams(); renderHistory(); }
+if(!CONFIG[SELECTED_SPECIES]) SELECTED_SPECIES = Object.keys(CONFIG)[0];
+loadTheme(); renderAll();
+
+// ---------- Helpers for debug ----------
+window._VETO = { getConfig: ()=>CONFIG, getHistory: ()=>HISTORY, saveConfig: ()=>saveConfig(CONFIG) };
+})();
+</script>
+</body>
+</html>
